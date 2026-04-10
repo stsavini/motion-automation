@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting → Motion Tasks</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 24px 16px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 24px;
+            color: #111;
+        }
+
+        /* Settings bar */
+        .settings {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+
+        .settings label {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .settings select {
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            min-width: 200px;
+        }
+
+        /* Transcript input */
+        .input-section {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .input-section h2 {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            resize: vertical;
+        }
+
+        .input-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+        }
+
+        .file-upload-label {
+            font-size: 0.85rem;
+            color: #555;
+            cursor: pointer;
+            padding: 8px 14px;
+            border: 1px dashed #aaa;
+            border-radius: 6px;
+        }
+
+        .file-upload-label:hover {
+            border-color: #666;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-name {
+            font-size: 0.85rem;
+            color: #777;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.15s;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: #2563eb;
+            color: #fff;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #1d4ed8;
+        }
+
+        .btn-success {
+            background: #16a34a;
+            color: #fff;
+        }
+
+        .btn-success:hover:not(:disabled) {
+            background: #15803d;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #333;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #d1d5db;
+        }
+
+        .btn-danger {
+            background: none;
+            color: #dc2626;
+            padding: 4px 8px;
+            font-size: 0.85rem;
+        }
+
+        .btn-danger:hover {
+            background: #fee2e2;
+        }
+
+        /* Task list */
+        .tasks-section {
+            margin-bottom: 24px;
+        }
+
+        .tasks-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .tasks-header h2 {
+            font-size: 1.1rem;
+        }
+
+        .task-count {
+            font-size: 0.85rem;
+            color: #777;
+        }
+
+        .task-card {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+
+        .task-card.excluded {
+            opacity: 0.5;
+        }
+
+        .task-card.sent-ok {
+            border-color: #16a34a;
+            background: #f0fdf4;
+        }
+
+        .task-card.sent-fail {
+            border-color: #dc2626;
+            background: #fef2f2;
+        }
+
+        .task-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .task-field {
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+        }
+
+        .task-field label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .task-field input[type="text"],
+        .task-field input[type="date"],
+        .task-field select {
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        .task-field-name { flex: 1; min-width: 200px; }
+        .task-field-priority { width: 110px; }
+        .task-field-due { width: 150px; }
+        .task-field-assignee { width: 130px; }
+
+        .task-description {
+            width: 100%;
+            margin-top: 8px;
+        }
+
+        .task-description textarea {
+            height: 50px;
+            font-size: 0.85rem;
+        }
+
+        .task-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .task-actions label {
+            font-size: 0.85rem;
+            color: #555;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .task-status-msg {
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .task-status-msg.success { color: #16a34a; }
+        .task-status-msg.error { color: #dc2626; }
+
+        /* Progress bar */
+        .progress-section {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .progress-bar-outer {
+            width: 100%;
+            height: 8px;
+            background: #e5e7eb;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        .progress-bar-inner {
+            height: 100%;
+            background: #2563eb;
+            border-radius: 4px;
+            transition: width 0.3s;
+            width: 0%;
+        }
+
+        .progress-text {
+            font-size: 0.9rem;
+            color: #555;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #fff;
+            border-top-color: transparent;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .spinner.dark {
+            border-color: #2563eb;
+            border-top-color: transparent;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Error/info messages */
+        .message {
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        .message.error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+
+        .message.info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #2563eb;
+        }
+
+        .send-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Meeting Transcript → Motion Tasks</h1>
+
+        <!-- Settings -->
+        <div class="settings">
+            <label>
+                Workspace
+                <select id="workspace-select">
+                    <option value="">Loading...</option>
+                </select>
+            </label>
+            <label>
+                Project
+                <select id="project-select">
+                    <option value="">Select workspace first</option>
+                </select>
+            </label>
+        </div>
+
+        <!-- Messages -->
+        <div id="message" class="message"></div>
+
+        <!-- Transcript Input -->
+        <div class="input-section">
+            <h2>Transcript</h2>
+            <textarea id="transcript" placeholder="Paste your meeting transcript here..."></textarea>
+            <div class="input-actions">
+                <label class="file-upload-label">
+                    Upload file
+                    <input type="file" id="file-upload" accept=".txt,.md,.vtt,.srt">
+                </label>
+                <span id="file-name" class="file-name"></span>
+                <div style="flex:1"></div>
+                <button id="extract-btn" class="btn btn-primary" onclick="extractTasks()">
+                    Extract Tasks
+                </button>
+            </div>
+        </div>
+
+        <!-- Task List -->
+        <div class="tasks-section" id="tasks-section" style="display:none">
+            <div class="tasks-header">
+                <h2>Extracted Tasks</h2>
+                <span id="task-count" class="task-count"></span>
+            </div>
+            <div id="task-list"></div>
+            <div style="display:flex; gap:12px; margin-top:12px;">
+                <button class="btn btn-secondary" onclick="addTask()">+ Add Task</button>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="progress-section" id="progress-section">
+            <span class="progress-text" id="progress-text"></span>
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progress-bar"></div>
+            </div>
+        </div>
+
+        <!-- Send -->
+        <div id="send-section" style="display:none">
+            <div class="send-actions">
+                <button id="send-btn" class="btn btn-success" onclick="sendToMotion()">
+                    Send to Motion
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let tasks = [];
+        let sending = false;
+
+        // --- Settings ---
+
+        const workspaceSelect = document.getElementById("workspace-select");
+        const projectSelect = document.getElementById("project-select");
+
+        async function loadWorkspaces() {
+            try {
+                const resp = await fetch("/api/workspaces");
+                const data = await resp.json();
+                const workspaces = data.workspaces || data;
+                workspaceSelect.innerHTML = '<option value="">Select workspace</option>';
+                (Array.isArray(workspaces) ? workspaces : []).forEach(ws => {
+                    const opt = document.createElement("option");
+                    opt.value = ws.id;
+                    opt.textContent = ws.name;
+                    workspaceSelect.appendChild(opt);
+                });
+                const saved = localStorage.getItem("motionWorkspaceId");
+                if (saved && workspaceSelect.querySelector(`option[value="${saved}"]`)) {
+                    workspaceSelect.value = saved;
+                    loadProjects(saved);
+                }
+            } catch (e) {
+                workspaceSelect.innerHTML = '<option value="">Failed to load</option>';
+                showMessage("Could not load workspaces. Is the server running with a valid Motion API key?", "error");
+            }
+        }
+
+        async function loadProjects(workspaceId) {
+            projectSelect.innerHTML = '<option value="">Loading...</option>';
+            if (!workspaceId) {
+                projectSelect.innerHTML = '<option value="">Select workspace first</option>';
+                return;
+            }
+            try {
+                const resp = await fetch(`/api/projects?workspaceId=${workspaceId}`);
+                const data = await resp.json();
+                const projects = data.projects || data;
+                projectSelect.innerHTML = '<option value="">(No project)</option>';
+                (Array.isArray(projects) ? projects : []).forEach(p => {
+                    const opt = document.createElement("option");
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    projectSelect.appendChild(opt);
+                });
+                const saved = localStorage.getItem("motionProjectId");
+                if (saved && projectSelect.querySelector(`option[value="${saved}"]`)) {
+                    projectSelect.value = saved;
+                }
+            } catch (e) {
+                projectSelect.innerHTML = '<option value="">Failed to load</option>';
+            }
+        }
+
+        workspaceSelect.addEventListener("change", () => {
+            const id = workspaceSelect.value;
+            localStorage.setItem("motionWorkspaceId", id);
+            loadProjects(id);
+        });
+
+        projectSelect.addEventListener("change", () => {
+            localStorage.setItem("motionProjectId", projectSelect.value);
+        });
+
+        // --- File Upload ---
+
+        document.getElementById("file-upload").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            document.getElementById("file-name").textContent = file.name;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                document.getElementById("transcript").value = ev.target.result;
+            };
+            reader.readAsText(file);
+        });
+
+        // --- Task Extraction ---
+
+        async function extractTasks() {
+            const transcript = document.getElementById("transcript").value.trim();
+            if (!transcript) {
+                showMessage("Please enter or upload a transcript first.", "error");
+                return;
+            }
+
+            const btn = document.getElementById("extract-btn");
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span> Extracting...';
+            hideMessage();
+
+            try {
+                const resp = await fetch("/api/extract-tasks", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ transcript }),
+                });
+                const data = await resp.json();
+
+                if (!resp.ok) {
+                    showMessage(data.error || "Failed to extract tasks.", "error");
+                    return;
+                }
+
+                tasks = (data.tasks || []).map((t, i) => ({
+                    ...t,
+                    _id: Date.now() + i,
+                    _include: true,
+                    _status: null,
+                    _statusMsg: "",
+                }));
+
+                renderTasks();
+                document.getElementById("tasks-section").style.display = "block";
+                document.getElementById("send-section").style.display = tasks.length > 0 ? "block" : "none";
+
+                if (tasks.length === 0) {
+                    showMessage("No actionable tasks found in the transcript.", "info");
+                }
+            } catch (e) {
+                showMessage("Network error. Is the server running?", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = "Extract Tasks";
+            }
+        }
+
+        // --- Task Rendering ---
+
+        function renderTasks() {
+            const container = document.getElementById("task-list");
+            const includedCount = tasks.filter(t => t._include).length;
+            document.getElementById("task-count").textContent = `${includedCount} of ${tasks.length} tasks selected`;
+
+            container.innerHTML = tasks.map((task, idx) => `
+                <div class="task-card ${task._include ? "" : "excluded"} ${task._status === "ok" ? "sent-ok" : ""} ${task._status === "fail" ? "sent-fail" : ""}">
+                    <div class="task-row">
+                        <div class="task-field task-field-name">
+                            <label>Task Name</label>
+                            <input type="text" value="${esc(task.name || "")}" onchange="updateTask(${idx}, 'name', this.value)">
+                        </div>
+                        <div class="task-field task-field-priority">
+                            <label>Priority</label>
+                            <select onchange="updateTask(${idx}, 'priority', this.value)">
+                                ${["ASAP", "HIGH", "MEDIUM", "LOW"].map(p =>
+                                    `<option value="${p}" ${task.priority === p ? "selected" : ""}>${p}</option>`
+                                ).join("")}
+                            </select>
+                        </div>
+                        <div class="task-field task-field-due">
+                            <label>Due Date</label>
+                            <input type="date" value="${esc(task.dueDate || "")}" onchange="updateTask(${idx}, 'dueDate', this.value)">
+                        </div>
+                        <div class="task-field task-field-assignee">
+                            <label>Assignee</label>
+                            <input type="text" value="${esc(task.assignee || "")}" onchange="updateTask(${idx}, 'assignee', this.value)">
+                        </div>
+                    </div>
+                    <div class="task-description">
+                        <div class="task-field" style="width:100%">
+                            <label>Description</label>
+                            <textarea onchange="updateTask(${idx}, 'description', this.value)">${esc(task.description || "")}</textarea>
+                        </div>
+                    </div>
+                    <div class="task-actions">
+                        <label>
+                            <input type="checkbox" ${task._include ? "checked" : ""} onchange="toggleTask(${idx}, this.checked)">
+                            Include
+                        </label>
+                        ${task._statusMsg ? `<span class="task-status-msg ${task._status === "ok" ? "success" : "error"}">${esc(task._statusMsg)}</span>` : ""}
+                        <button class="btn btn-danger" onclick="removeTask(${idx})">Remove</button>
+                    </div>
+                </div>
+            `).join("");
+        }
+
+        function esc(str) {
+            const el = document.createElement("span");
+            el.textContent = str;
+            return el.innerHTML;
+        }
+
+        function updateTask(idx, field, value) {
+            tasks[idx][field] = value;
+        }
+
+        function toggleTask(idx, checked) {
+            tasks[idx]._include = checked;
+            renderTasks();
+        }
+
+        function removeTask(idx) {
+            tasks.splice(idx, 1);
+            renderTasks();
+            if (tasks.length === 0) {
+                document.getElementById("send-section").style.display = "none";
+            }
+        }
+
+        function addTask() {
+            tasks.push({
+                name: "",
+                description: "",
+                priority: "MEDIUM",
+                dueDate: "",
+                assignee: "",
+                _id: Date.now(),
+                _include: true,
+                _status: null,
+                _statusMsg: "",
+            });
+            renderTasks();
+            document.getElementById("tasks-section").style.display = "block";
+            document.getElementById("send-section").style.display = "block";
+        }
+
+        // --- Send to Motion ---
+
+        async function sendToMotion() {
+            if (sending) return;
+
+            const workspaceId = workspaceSelect.value;
+            if (!workspaceId) {
+                showMessage("Please select a workspace first.", "error");
+                return;
+            }
+
+            const toSend = tasks.filter(t => t._include && t._status !== "ok");
+            if (toSend.length === 0) {
+                showMessage("No tasks to send.", "info");
+                return;
+            }
+
+            sending = true;
+            const sendBtn = document.getElementById("send-btn");
+            sendBtn.disabled = true;
+
+            const progressSection = document.getElementById("progress-section");
+            const progressText = document.getElementById("progress-text");
+            const progressBar = document.getElementById("progress-bar");
+            progressSection.style.display = "block";
+            hideMessage();
+
+            const projectId = projectSelect.value || undefined;
+            const DELAY_MS = 5500;
+
+            for (let i = 0; i < toSend.length; i++) {
+                const task = toSend[i];
+                const taskIdx = tasks.indexOf(task);
+                progressText.textContent = `Sending task ${i + 1} of ${toSend.length}: ${task.name || "(untitled)"}`;
+                progressBar.style.width = `${((i) / toSend.length) * 100}%`;
+
+                const payload = {
+                    name: task.name,
+                    workspaceId,
+                    description: task.description || undefined,
+                    priority: task.priority || undefined,
+                    dueDate: task.dueDate || undefined,
+                    projectId,
+                };
+                // Remove undefined fields
+                Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
+
+                let retries = 0;
+                let success = false;
+
+                while (retries <= 2 && !success) {
+                    try {
+                        const resp = await fetch("/api/tasks", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify(payload),
+                        });
+                        const data = await resp.json();
+
+                        if (resp.ok) {
+                            tasks[taskIdx]._status = "ok";
+                            tasks[taskIdx]._statusMsg = "Sent";
+                            success = true;
+                        } else if (resp.status === 429 && retries < 2) {
+                            retries++;
+                            progressText.textContent = `Rate limited. Retrying task ${i + 1} in 10s... (attempt ${retries + 1}/3)`;
+                            await sleep(10000);
+                        } else {
+                            tasks[taskIdx]._status = "fail";
+                            tasks[taskIdx]._statusMsg = data.message || data.error || `Error ${resp.status}`;
+                            success = true; // stop retrying
+                        }
+                    } catch (e) {
+                        tasks[taskIdx]._status = "fail";
+                        tasks[taskIdx]._statusMsg = "Network error";
+                        success = true;
+                    }
+                }
+
+                renderTasks();
+
+                // Delay between requests (skip after last)
+                if (i < toSend.length - 1) {
+                    await sleep(DELAY_MS);
+                }
+            }
+
+            progressBar.style.width = "100%";
+            const okCount = toSend.filter(t => t._status === "ok").length;
+            const failCount = toSend.filter(t => t._status === "fail").length;
+            progressText.textContent = `Done! ${okCount} sent${failCount > 0 ? `, ${failCount} failed` : ""}.`;
+
+            sendBtn.disabled = false;
+            sending = false;
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // --- Messages ---
+
+        function showMessage(text, type) {
+            const el = document.getElementById("message");
+            el.textContent = text;
+            el.className = `message ${type}`;
+            el.style.display = "block";
+        }
+
+        function hideMessage() {
+            document.getElementById("message").style.display = "none";
+        }
+
+        // --- Init ---
+        loadWorkspaces();
+    </script>
+</body>
+</html>
