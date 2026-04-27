@@ -236,7 +236,7 @@
         .task-field-name { flex: 1; min-width: 200px; }
         .task-field-priority { width: 110px; }
         .task-field-due { width: 150px; }
-        .task-field-assignee { width: 130px; }
+        .task-field-assignee { width: 160px; }
 
         .task-description {
             width: 100%;
@@ -425,6 +425,7 @@
 
     <script>
         let tasks = [];
+        let users = [];
         let sending = false;
 
         // --- Settings ---
@@ -448,10 +449,23 @@
                 if (saved && workspaceSelect.querySelector(`option[value="${saved}"]`)) {
                     workspaceSelect.value = saved;
                     loadProjects(saved);
+                    loadUsers(saved);
                 }
             } catch (e) {
                 workspaceSelect.innerHTML = '<option value="">Failed to load</option>';
                 showMessage("Could not load workspaces. Is the server running with a valid Motion API key?", "error");
+            }
+        }
+
+        async function loadUsers(workspaceId) {
+            if (!workspaceId) { users = []; return; }
+            try {
+                const resp = await fetch(`/api/users?workspaceId=${workspaceId}`);
+                const data = await resp.json();
+                const raw = data.users || data;
+                users = Array.isArray(raw) ? raw : [];
+            } catch (e) {
+                users = [];
             }
         }
 
@@ -485,6 +499,7 @@
             const id = workspaceSelect.value;
             localStorage.setItem("motionWorkspaceId", id);
             loadProjects(id);
+            loadUsers(id);
         });
 
         projectSelect.addEventListener("change", () => {
@@ -531,13 +546,21 @@
                     return;
                 }
 
-                tasks = (data.tasks || []).map((t, i) => ({
-                    ...t,
-                    _id: Date.now() + i,
-                    _include: true,
-                    _status: null,
-                    _statusMsg: "",
-                }));
+                tasks = (data.tasks || []).map((t, i) => {
+                    const name = (t.assignee || "").toLowerCase().trim();
+                    const matched = name ? users.find(u => {
+                        const uname = (u.name || "").toLowerCase();
+                        return uname === name || uname.includes(name) || name.includes(uname);
+                    }) : null;
+                    return {
+                        ...t,
+                        _id: Date.now() + i,
+                        _include: true,
+                        _status: null,
+                        _statusMsg: "",
+                        assigneeId: matched ? matched.id : null,
+                    };
+                });
 
                 renderTasks();
                 document.getElementById("tasks-section").style.display = "block";
@@ -582,7 +605,10 @@
                         </div>
                         <div class="task-field task-field-assignee">
                             <label>Assignee</label>
-                            <input type="text" value="${esc(task.assignee || "")}" onchange="updateTask(${idx}, 'assignee', this.value)">
+                            <select onchange="updateTask(${idx}, 'assigneeId', this.value)">
+                                <option value="">None</option>
+                                ${users.map(u => `<option value="${esc(u.id)}" ${task.assigneeId === u.id ? "selected" : ""}>${esc(u.name)}</option>`).join("")}
+                            </select>
                         </div>
                     </div>
                     <div class="task-description">
@@ -633,6 +659,7 @@
                 priority: "MEDIUM",
                 dueDate: "",
                 assignee: "",
+                assigneeId: null,
                 _id: Date.now(),
                 _include: true,
                 _status: null,
@@ -686,6 +713,7 @@
                     priority: task.priority || undefined,
                     dueDate: task.dueDate || undefined,
                     projectId,
+                    assigneeId: task.assigneeId || undefined,
                 };
                 // Remove undefined fields
                 Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
