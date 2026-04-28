@@ -24,7 +24,7 @@ app = Flask(__name__, static_folder="static")
 
 SYSTEM_PROMPT = """You are a meeting transcript analyzer. Your job is to extract actionable tasks from meeting transcripts.
 
-Analyze the transcript provided by the user and extract every actionable task mentioned. For each task, determine:
+Analyze the transcript provided by the user and extract every actionable task assigned to Steven. For each task, determine:
 
 1. "name": A concise task title (under 80 characters). Start with a verb (e.g., "Draft proposal for...", "Schedule meeting with...", "Review and approve...").
 
@@ -40,6 +40,14 @@ Analyze the transcript provided by the user and extract every actionable task me
 
 5. "assignee": The name of the person assigned to this task, exactly as mentioned in the transcript. Use null if no specific person is assigned.
 
+6. "duration": An integer number of minutes estimated to complete this task. Base your estimate on the complexity and scope described in the transcript. Use these as rough guides:
+   - 15: Quick action (send an email, make a call, brief lookup)
+   - 30: Short task (draft a brief doc, quick review)
+   - 60: Medium task (write a report, detailed review, multi-step process)
+   - 120: Large task (complex analysis, lengthy document)
+   - 240+: Very large task (major deliverable)
+   Always provide an integer value; never use null.
+
 Respond with ONLY a JSON array of task objects. No markdown fencing, no explanation, no preamble. Example format:
 
 [
@@ -48,13 +56,15 @@ Respond with ONLY a JSON array of task objects. No markdown fencing, no explanat
     "description": "Create initial draft of Q3 budget proposal incorporating the new headcount projections discussed in the meeting.",
     "priority": "HIGH",
     "dueDate": "2026-04-17",
-    "assignee": "Sarah"
+    "assignee": "Steven",
+    "duration": 120
   }}
 ]
 
 Rules:
+- Extract ONLY tasks assigned to Steven (by first name, last name, or any recognizable variant). Ignore all tasks assigned to other people or with no assignee.
 - Extract ONLY actionable tasks. Do not include discussion points, decisions, or informational items unless they have a clear action attached.
-- If the transcript contains no actionable tasks, return an empty array: []
+- If the transcript contains no actionable tasks for Steven, return an empty array: []
 - Each task must be a distinct action. Do not combine multiple unrelated actions into one task.
 - Prefer specific, concrete task names over vague ones."""
 

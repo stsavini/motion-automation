@@ -237,6 +237,7 @@
         .task-field-priority { width: 110px; }
         .task-field-due { width: 150px; }
         .task-field-assignee { width: 160px; }
+        .task-field-duration { width: 110px; }
 
         .task-description {
             width: 100%;
@@ -370,6 +371,23 @@
                 <select id="project-select">
                     <option value="">Select workspace first</option>
                 </select>
+            </label>
+            <label>
+                Start Date
+                <input type="date" id="start-date-input" style="padding:6px 10px;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;">
+            </label>
+            <label>
+                Allow Chunks
+                <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+                    <input type="checkbox" id="chunks-enabled" onchange="toggleChunks(this.checked)">
+                    <input type="number" id="min-chunk" min="5" step="5" value="30" placeholder="min (min)" style="display:none;width:90px;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:0.9rem;">
+                </div>
+            </label>
+            <label>
+                Auto-schedule
+                <div style="margin-top:4px;">
+                    <input type="checkbox" id="auto-schedule" checked>
+                </div>
             </label>
         </div>
 
@@ -512,12 +530,21 @@
             const file = e.target.files[0];
             if (!file) return;
             document.getElementById("file-name").textContent = file.name;
+            document.getElementById("start-date-input").value = todayISO();
             const reader = new FileReader();
             reader.onload = (ev) => {
                 document.getElementById("transcript").value = ev.target.result;
             };
             reader.readAsText(file);
         });
+
+        function todayISO() {
+            return new Date().toISOString().split("T")[0];
+        }
+
+        function toggleChunks(enabled) {
+            document.getElementById("min-chunk").style.display = enabled ? "inline-block" : "none";
+        }
 
         // --- Task Extraction ---
 
@@ -559,6 +586,7 @@
                         _status: null,
                         _statusMsg: "",
                         assigneeId: matched ? matched.id : null,
+                        duration: t.duration || 30,
                     };
                 });
 
@@ -610,6 +638,10 @@
                                 ${users.map(u => `<option value="${esc(u.id)}" ${task.assigneeId === u.id ? "selected" : ""}>${esc(u.name)}</option>`).join("")}
                             </select>
                         </div>
+                        <div class="task-field task-field-duration">
+                            <label>Duration (min)</label>
+                            <input type="number" min="5" step="5" value="${task.duration || 30}" onchange="updateTask(${idx}, 'duration', parseInt(this.value) || 30)">
+                        </div>
                     </div>
                     <div class="task-description">
                         <div class="task-field" style="width:100%">
@@ -660,6 +692,7 @@
                 dueDate: "",
                 assignee: "",
                 assigneeId: null,
+                duration: 30,
                 _id: Date.now(),
                 _include: true,
                 _status: null,
@@ -698,6 +731,10 @@
             hideMessage();
 
             const projectId = projectSelect.value || undefined;
+            const startDate = document.getElementById("start-date-input").value || undefined;
+            const chunksEnabled = document.getElementById("chunks-enabled").checked;
+            const minChunk = chunksEnabled ? (parseInt(document.getElementById("min-chunk").value) || 30) : undefined;
+            const autoSchedule = document.getElementById("auto-schedule").checked;
             const DELAY_MS = 5500;
 
             for (let i = 0; i < toSend.length; i++) {
@@ -712,8 +749,12 @@
                     description: task.description || undefined,
                     priority: task.priority || undefined,
                     dueDate: task.dueDate || undefined,
+                    scheduledStart: startDate,
                     projectId,
                     assigneeId: task.assigneeId || undefined,
+                    duration: task.duration || undefined,
+                    minimumDuration: minChunk,
+                    autoScheduled: autoSchedule || undefined,
                 };
                 // Remove undefined fields
                 Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
@@ -785,6 +826,7 @@
         }
 
         // --- Init ---
+        document.getElementById("start-date-input").value = todayISO();
         loadWorkspaces();
     </script>
 </body>
