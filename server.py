@@ -62,7 +62,8 @@ Respond with ONLY a JSON array of task objects. No markdown fencing, no explanat
 ]
 
 Rules:
-- Extract ONLY tasks assigned to Steven (by first name, last name, or any recognizable variant). Ignore all tasks assigned to other people or with no assignee.
+- Extract ONLY tasks assigned to Steven Savini (by first name, last name, or any recognizable variant such as "Steven" or "Steve"). Ignore tasks assigned to other people.
+- If a task has no explicit assignee but is clearly directed at the group or unspecified, include it — Steven may be responsible.
 - Extract ONLY actionable tasks. Do not include discussion points, decisions, or informational items unless they have a clear action attached.
 - If the transcript contains no actionable tasks for Steven, return an empty array: []
 - Each task must be a distinct action. Do not combine multiple unrelated actions into one task.
