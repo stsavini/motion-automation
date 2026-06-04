@@ -732,8 +732,6 @@
 
             const projectId = projectSelect.value || undefined;
             const startDate = document.getElementById("start-date-input").value || undefined;
-            const chunksEnabled = document.getElementById("chunks-enabled").checked;
-            const minChunk = chunksEnabled ? (parseInt(document.getElementById("min-chunk").value) || 30) : undefined;
             const autoSchedule = document.getElementById("auto-schedule").checked;
             const DELAY_MS = 5500;
 
@@ -749,13 +747,23 @@
                     description: task.description || undefined,
                     priority: task.priority || undefined,
                     dueDate: task.dueDate || undefined,
-                    scheduledStart: startDate,
                     projectId,
                     assigneeId: task.assigneeId || undefined,
                     duration: task.duration || undefined,
-                    minimumDuration: minChunk,
-                    autoScheduled: autoSchedule || undefined,
+                    // Motion expects autoScheduled as an object (or null for manual).
+                    // The start date lives inside this object, not as a top-level field.
+                    autoScheduled: autoSchedule
+                        ? {
+                            startDate: startDate ? new Date(startDate).toISOString() : undefined,
+                            deadlineType: "SOFT",
+                        }
+                        : null,
                 };
+                if (payload.autoScheduled) {
+                    Object.keys(payload.autoScheduled).forEach(
+                        k => payload.autoScheduled[k] === undefined && delete payload.autoScheduled[k]
+                    );
+                }
                 // Remove undefined fields
                 Object.keys(payload).forEach(k => payload[k] === undefined && delete payload[k]);
 
