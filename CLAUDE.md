@@ -40,7 +40,8 @@ Single-file Flask backend (`server.py`) + single-file vanilla JS frontend (`stat
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Yes | — |
 | `MOTION_API_KEY` | Yes | — |
-| `CLAUDE_MODEL` | No | `claude-sonnet-4-20250514` |
+| `CLAUDE_MODEL` | No | `claude-sonnet-5` |
+| `SSL_VERIFY` | No | `1` (set to `0` to skip TLS cert verification on outbound API calls, e.g. behind a proxy that breaks it) |
 
 The server exits immediately at startup if either required key is missing.
 

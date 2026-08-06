@@ -13,11 +13,16 @@ load_dotenv()
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 MOTION_API_KEY = os.getenv("MOTION_API_KEY")
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-4-20250514")
+CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-sonnet-5")
+
+# Set SSL_VERIFY=0 only if this deployment sits behind a proxy that
+# intercepts TLS and breaks certificate verification.
+SSL_VERIFY = os.getenv("SSL_VERIFY", "1") != "0"
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
 
 app = Flask(__name__, static_folder=STATIC_DIR)
+anthropic_client = anthropic.Anthropic(http_client=anthropic.DefaultHttpxClient(verify=SSL_VERIFY))
 
 
 @app.before_request
@@ -80,7 +85,7 @@ def motion_request(method, path, params=None, json_body=None):
     headers = {"X-API-Key": MOTION_API_KEY}
     url = f"https://api.usemotion.com/v1{path}"
     resp = http_requests.request(
-        method, url, headers=headers, params=params, json=json_body
+        method, url, headers=headers, params=params, json=json_body, verify=SSL_VERIFY
     )
     return resp.json(), resp.status_code
 
@@ -130,8 +135,7 @@ def extract_tasks():
     today = date.today().isoformat()
     prompt_text = SYSTEM_PROMPT.replace("{today}", today)
 
-    client = anthropic.Anthropic()
-    response = client.messages.create(
+    response = anthropic_client.messages.create(
         model=CLAUDE_MODEL,
         max_tokens=4096,
         system=[
