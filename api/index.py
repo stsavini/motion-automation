@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import sys
 from datetime import date
 
@@ -78,6 +77,23 @@ Rules:
 - Each task must be a distinct action. Do not combine multiple unrelated actions into one task.
 - Prefer specific, concrete task names over vague ones."""
 
+TASK_SCHEMA = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string"},
+            "description": {"type": "string"},
+            "priority": {"type": "string", "enum": ["ASAP", "HIGH", "MEDIUM", "LOW"]},
+            "dueDate": {"type": ["string", "null"]},
+            "assignee": {"type": ["string", "null"]},
+            "duration": {"type": "integer"},
+        },
+        "required": ["name", "description", "priority", "dueDate", "assignee", "duration"],
+        "additionalProperties": False,
+    },
+}
+
 
 # --- Motion API proxy ---
 
@@ -137,7 +153,9 @@ def extract_tasks():
 
     response = anthropic_client.messages.create(
         model=CLAUDE_MODEL,
-        max_tokens=4096,
+        max_tokens=8192,
+        thinking={"type": "disabled"},
+        output_config={"format": {"type": "json_schema", "schema": TASK_SCHEMA}},
         system=[
             {
                 "type": "text",
@@ -148,24 +166,10 @@ def extract_tasks():
         messages=[{"role": "user", "content": transcript}],
     )
 
-    text = response.content[0].text
-
-    # Try to parse JSON directly
     try:
-        tasks = json.loads(text)
-    except json.JSONDecodeError:
-        # Fallback: extract JSON array from response (in case of markdown fencing)
-        match = re.search(r"\[.*\]", text, re.DOTALL)
-        if match:
-            try:
-                tasks = json.loads(match.group())
-            except json.JSONDecodeError:
-                return jsonify({"error": "Could not parse tasks from AI response. Please try again."}), 500
-        else:
-            return jsonify({"error": "Could not parse tasks from AI response. Please try again."}), 500
-
-    if not isinstance(tasks, list):
-        return jsonify({"error": "Unexpected response format from AI."}), 500
+        tasks = json.loads(response.content[0].text)
+    except (json.JSONDecodeError, IndexError):
+        return jsonify({"error": "Could not parse tasks from AI response. Please try again."}), 500
 
     return jsonify({"tasks": tasks})
 
